@@ -29,11 +29,11 @@
 
 void checkArgs(int argc, char* argv[]) {
     if (argc > 3 || argc < 2) {
-        fprintf(stderr, "Incorrect usage. Correct usage is `$ ./raytracer1d [-s:soft shadows] <path/to/input_file>`\n");
+        fprintf(stderr, "Incorrect usage. Correct usage is `$ ./raytracer [-s:soft shadows] <path/to/input_file>`\n");
         exit(-1);
     }
-    if (strcmp(argv[0], "./raytracer1d") != 0 && strcmp(argv[0], "/home/ben/github.com/fundamentals-of-computer-graphics/assignment1d/main") != 0  && strcmp(argv[0], "/Users/Z003YW4/github.com/fundamentals-of-computer-graphics/assignment1d/main") != 0) {
-        fprintf(stderr, "Incorrect usage. Correct usage is `$ ./raytracer1c <path/to/input_file>`\n");
+    if (strcmp(argv[0], "./raytracer") != 0) {
+        fprintf(stderr, "Incorrect usage. Correct usage is `$ ./raytracer <path/to/input_file>`\n");
         exit(-1);
     }
 }

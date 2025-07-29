@@ -143,61 +143,51 @@ Reflection applyReflections(
 ) {
     Vector3 baseColor = illumination.color;
     Vector3 reflectionColor = (Vector3) {
-        .x = 0.0f,
-        .y = 0.0f,
-        .z = 0.0f
+            .x = 0.0f,
+            .y = 0.0f,
+            .z = 0.0f
     };
     Vector3 reflection = (Vector3) {
-        .x = 0.0f,
-        .y = 0.0f,
-        .z = 0.0f
+            .x = 0.0f,
+            .y = 0.0f,
+            .z = 0.0f
     };
 
     if (intersection.mtlColor.specularCoefficient > 0.0f) {
-        Vector3 test = (Vector3) {
-            .x = 2,
-            .y = 3,
-            .z = -6
-        };
-        Vector3 test2 = multiply(test, -1.0f);
-        Vector3 test3 = normalize(test2);
-
-        Ray test4 = reflectRay(intersection.intersectionPoint, test3, (Vector3) {.x = 0.333333f, .y = 0.66666666f, .z = 0.6666666f });
-
         reflectionColor = shadeRay(
-            reflectRay(
-                    intersection.intersectionPoint,
-                    multiply(intersection.incidentDirection, -1.0f),
-                    (Vector3) {.x = 0.333333f, .y = 0.66666666f, .z = 0.6666666f }
+                reflectRay(
+                        intersection.intersectionPoint,
+                        multiply(intersection.incidentDirection, -1.0f),
+                        intersection.surfaceNormal
                 ),
                 scene,
                 (RayState) {
-                    .exclusion = rayState.exclusion,
-                    .shadow = rayState.shadow,
-                    .reflectionDepth = rayState.reflectionDepth + 1,
-                    .previousRefractionIndex = rayState.previousRefractionIndex
+                        .exclusion = rayState.exclusion,
+                        .shadow = rayState.shadow,
+                        .reflectionDepth = rayState.reflectionDepth + 1,
+                        .previousRefractionIndex = rayState.previousRefractionIndex
                 }
         );
         reflection = multiply(reflectionColor, Fr);
         baseColor = clamp(add(
-            multiply(illumination.ambient, 1.0f - Fr),
-            multiply(illumination.depthCueingAmbient, 1.0f - Fr)
+                multiply(illumination.ambient, 1.0f - Fr),
+                multiply(illumination.depthCueingAmbient, 1.0f - Fr)
         ));
     }
 
     if (baseColor.x == 0.0f && baseColor.y == 0.0f && baseColor.z == 0.0f) {
         reflection = (Vector3) {
-            .x = 0.0f,
-            .y = 0.0f,
-            .z = 0.0f
+                .x = 0.0f,
+                .y = 0.0f,
+                .z = 0.0f
         };
     }
 
     Vector3 reflectionsApplied = add(baseColor, reflection);
 
     return (Reflection) {
-        .color = clamp(reflectionsApplied),
-        .reflectionColor = clamp(reflectionColor)
+            .color = clamp(reflectionsApplied),
+            .reflectionColor = clamp(reflectionColor)
     };
 }
 
@@ -208,21 +198,6 @@ Vector3 applyTransparency(Scene* scene, Intersection intersection, RayState rayS
 
     Vector3 I = multiply(intersection.incidentDirection, -1.0f);
 
-    intersection.surfaceNormal = (Vector3) {
-            .x = 0.333333333f,
-            .y = 0.666666666f,
-            .z = 0.666666666f
-    };
-
-    I = (Vector3) {
-        .x = 0.0192275941f,
-        .y = 0.133693337f,
-        .z = 0.990836203f
-    };
-
-    currentRefractionIndex = 1.5f;
-    nextRefractionIndex = 1.0f;
-
     float cosThetaEntering = dot(intersection.surfaceNormal, I);
     float refractionCoefficient = currentRefractionIndex / nextRefractionIndex;
     float partUnderSqrt = 1.0f - powf(refractionCoefficient, 2.0f) * (1.0f - powf(cosThetaEntering, 2.0f));
@@ -230,12 +205,9 @@ Vector3 applyTransparency(Scene* scene, Intersection intersection, RayState rayS
         return reflection.reflectionColor;
     }
 
-    Vector3 test = multiply(intersection.surfaceNormal, cosThetaEntering);
-
     Vector3 refractionDirToMultiply = subtract(multiply(intersection.surfaceNormal, cosThetaEntering), I);
 
     float cosThetaExiting = sqrtf(partUnderSqrt);
-
 
     Ray nextIncident = (Ray) {
             .origin = intersection.intersectionPoint,
@@ -246,10 +218,10 @@ Vector3 applyTransparency(Scene* scene, Intersection intersection, RayState rayS
     };
 
     Vector3 transparencyColor = shadeRay(nextIncident, scene, (RayState) {
-        .exclusion = rayState.exclusion,
-        .shadow = rayState.shadow,
-        .reflectionDepth = rayState.reflectionDepth,
-        .previousRefractionIndex = currentRefractionIndex
+            .exclusion = rayState.exclusion,
+            .shadow = rayState.shadow,
+            .reflectionDepth = rayState.reflectionDepth,
+            .previousRefractionIndex = currentRefractionIndex
     });
 
     float distanceTraveled = magnitude(subtract(nextIncident.origin, intersection.intersectionPoint));
@@ -257,9 +229,7 @@ Vector3 applyTransparency(Scene* scene, Intersection intersection, RayState rayS
     float attenuationCoefficient = intersection.mtlColor.attenuationCoefficient;
     float attenuationFactor = expf(-attenuationCoefficient * distanceTraveled);
     Vector3 attenuatedTransparencyColor = multiply(transparencyColor, attenuationFactor);
-    intersection.mtlColor.alpha = 1.0f;
-//    Vector3 transparency = multiply((Vector3) {0.125f, 0.501f, 0.5636f}, (1.0f - 0.0408287458f) * (1.0f - intersection.mtlColor.alpha));
-    Vector3 transparency = multiply((Vector3) {1, 1, 1}, (1.0f - 0.373748f) * (1.0f - intersection.mtlColor.alpha));
+    Vector3 transparency = multiply(attenuatedTransparencyColor, (1.0f - intersectionPointReflectionCoefficient) * (1.0f - intersection.mtlColor.alpha));
 
     return add(reflection.color, transparency);
 }
@@ -282,18 +252,14 @@ Vector3 applyBlinnPhongIllumination(
         nextRefractionIndex = tempRefractionIndex;
         intersection.surfaceNormal = multiply(intersection.surfaceNormal, -1.0f);
         newExclusion = (Exclusion) {
-            .excludeSphereIdx = -1,
-            .excludeEllipsoidIdx = -1,
-            .excludeFaceIdx = intersection.exclusion.excludeFaceIdx
+                .excludeSphereIdx = -1,
+                .excludeEllipsoidIdx = -1,
+                .excludeFaceIdx = intersection.exclusion.excludeFaceIdx
         };
     }
 
-    currentRefractionIndex = 1.5f;
-    nextRefractionIndex = 1.0f;
-
     float F0 = powf(((nextRefractionIndex - currentRefractionIndex) / (nextRefractionIndex + currentRefractionIndex)), 2);
-    float Fr = F0 + ((1.0f - F0) * powf(1.0f - 0.75609f, 5));
-    float test =  powf(1.0f - 0.75609f, 5);
+    float Fr = F0 + ((1.0f - F0) * powf(1.0f - dot(multiply(intersection.incidentDirection, -1.0f), intersection.surfaceNormal), 5));
     Reflection reflection = applyReflections(scene, intersection, illumination, rayState, Fr);
 
     if (exiting && intersection.mtlColor.alpha >= 1.0f) {
